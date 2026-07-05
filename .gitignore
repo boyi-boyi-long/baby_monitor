@@ -3,6 +3,7 @@ backend/config.py
 
 # 執行時產生的資料
 backend/cry_scores.csv
+backend/motion_scores.csv
 *.log
 
 # Python

@@ -84,7 +84,7 @@
 觸發後：清空視窗 + 進入冷卻 120 秒
 ```
 
-### 4.3 活動量偵測（階段 3，規格預定）
+### 4.3 活動量偵測（階段 3，程式完成，見 backend/video_monitor.py）
 ```
 每秒一次：
   diff = cv2.absdiff(gray_now, gray_prev)
@@ -109,6 +109,11 @@
 | ALERT_COOLDOWN_SEC | 120 | 警報冷卻 |
 | OFFLINE_WARN_SEC | 60 | 離線通知門檻 |
 | LOG_ONLY | False | True = 校準模式（只記錄不通知） |
+| MOTION_DIFF_PIXEL_THRESHOLD | 25 | 單一像素亮度差門檻 |
+| MOTION_PIXEL_RATIO_THRESHOLD | 0.02 | 一幀「變動像素」佔比門檻，超過算這一秒「有在動」 |
+| MOTION_WINDOW_SEC / MOTION_RECENT_SEC | 180 / 30 | 活動視窗長度（3分鐘）／近期把關視窗（30秒） |
+| MOTION_ALERT_RATIO / MOTION_STILL_RATIO | 0.3 / 0.1 | 3分鐘視窗預警門檻／30秒視窗靜止門檻（皆待階段4校準） |
+| MOTION_ALERT_COOLDOWN_SEC | 120 | 活動量預警冷卻 |
 
 韌體端參數：GAIN_SHIFT=11（增益，9~13 可調）、SAMPLES_PER_PACKET=512。
 
@@ -119,8 +124,11 @@
 | backend/config.py | 實際設定（含 Telegram Token） | ❌ .gitignore |
 | backend/config.example.py | 設定範本（無金鑰） | ✅ |
 | backend/cry_scores.csv | 每 0.5s 的分數紀錄（校準用） | ❌ .gitignore |
+| backend/motion_scores.csv | 每秒的活動量紀錄（校準用） | ❌ .gitignore |
 
-CSV 欄位：`time, cry_score, top_class, top_score`
+CSV 欄位：
+- cry_scores.csv：`time, cry_score, top_class, top_score`
+- motion_scores.csv：`time, motion_ratio, active, mean_180s`
 
 ## 7. 錯誤處理原則
 

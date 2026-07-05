@@ -1,10 +1,13 @@
 """
-嬰兒哭聲監測 — 筆電後端主程式（階段1+2）
+嬰兒睡眠監測 — 筆電後端主程式（階段1+2+3）
 
 流程：
   UDP 接收 ESP32+INMP441 音訊 → 環形緩衝區（最近1秒）
   → 每 0.5 秒跑一次 YAMNet → 哭聲分數
-  → 滑動視窗判斷（6次中4次超過門檻）→ Telegram 警報（附攝影機截圖）
+  → 滑動視窗判斷（6次中4次超過門檻）→ 🚨 Telegram 哭聲警報（附攝影機截圖）
+
+  同時常駐一條 StreamReader 讀 ESP32-CAM 串流（見 video_monitor.py），
+  每秒算幀差活動量，持續偏高 → 📱「可能醒了」預警（見 video_monitor.py）。
 
 執行：python audio_monitor.py
 停止：Ctrl+C
@@ -17,11 +20,11 @@ import time
 from collections import deque
 from datetime import datetime
 
-import cv2
 import numpy as np
 
 import config
 import telegram_notify
+import video_monitor
 
 # ---------- 載入 YAMNet（第一次執行會自動下載模型，約 4MB）----------
 print("載入 YAMNet 模型中（第一次執行需要下載，請稍候）...")
@@ -59,24 +62,14 @@ def udp_receiver():
         last_packet_time[0] = time.time()
 
 
-def grab_snapshot():
-    """從 ESP32-CAM 串流抓一張當下的畫面；失敗回傳 None（不影響警報文字）。"""
-    try:
-        cap = cv2.VideoCapture(config.STREAM_URL)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        ok, frame = cap.read()
-        cap.release()
-        return frame if ok else None
-    except Exception as e:
-        print(f"[截圖] 失敗: {e}")
-        return None
-
-
-def send_alert(cry_score: float):
-    """發送哭聲警報（在獨立執行緒執行，不阻塞音訊判斷主迴圈）。"""
+def send_alert(stream_reader: video_monitor.StreamReader, cry_score: float):
+    """發送哭聲警報（在獨立執行緒執行，不阻塞音訊判斷主迴圈）。
+    截圖改跟階段3常駐的 StreamReader 要最新畫面，不再自己開一條攝影機連線
+    （ESP32-CAM 同時只服務得了一個串流 client）。
+    """
     now = datetime.now().strftime("%H:%M:%S")
     caption = f"🚨 偵測到寶寶哭聲！({now}, 分數 {cry_score:.2f})"
-    frame = grab_snapshot()
+    frame = stream_reader.get_frame(timeout=1.0)
     if frame is not None:
         telegram_notify.send_photo(frame, caption=caption)
     else:
@@ -85,6 +78,9 @@ def send_alert(cry_score: float):
 
 def main():
     threading.Thread(target=udp_receiver, daemon=True).start()
+
+    stream_reader = video_monitor.StreamReader(config.STREAM_URL).start()
+    threading.Thread(target=video_monitor.activity_loop, args=(stream_reader,), daemon=True).start()
 
     cry_history = deque(maxlen=config.CRY_WINDOW)
     last_alert_time = 0.0
@@ -154,7 +150,9 @@ def main():
             cry_history.clear()
             print(">>> 觸發哭聲警報！<<<")
             if not config.LOG_ONLY:
-                threading.Thread(target=send_alert, args=(cry_score,), daemon=True).start()
+                threading.Thread(
+                    target=send_alert, args=(stream_reader, cry_score), daemon=True
+                ).start()
 
 
 if __name__ == "__main__":
