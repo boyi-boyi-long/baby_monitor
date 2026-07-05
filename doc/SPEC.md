@@ -45,8 +45,11 @@
 | L/R | GND | 左聲道 |
 
 ### 2.2 影像節點
-- ESP32-CAM，OV3660 感光晶片，標準鏡頭（含 IR 濾光片，僅亮環境）
+- AI-Thinker ESP32-CAM，OV3660 感光晶片，標準鏡頭（含 IR 濾光片，僅亮環境）
 - 階段 5 更換：無 IR 濾光片魚眼鏡頭（24-pin FPC）＋850nm 補光燈（獨立 USB 供電）
+- 韌體：`esp32_cam_firmware/esp32_cam_firmware.ino`（網路上取得後客製化，port 80 網頁 ＋ port 81 MJPEG 串流）
+  - 用 DHCP 動態配置 IP，**每次重開機 IP 可能改變**，需看 Serial Monitor 開機輸出，
+    更新 `backend/config.py` 的 `STREAM_URL`
 
 ## 3. 通訊協定
 
