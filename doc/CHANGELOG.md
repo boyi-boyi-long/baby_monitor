@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-07-05　技術筆記（供專家複核）＋ 產品化規劃
+
+**新增**
+- `doc/TECH_NOTE_video_pipeline.md`：說明 `requirements.txt` 裡 numpy 為何必要
+  （幀差演算法 `(diff > threshold).sum()` 本身就是 numpy 陣列運算，且
+  `opencv-python` 本來就把 numpy 列為硬性依賴）；並檢視
+  `esp32_cam_firmware.ino`，發現 **`loop()` 沒有 Wi-Fi 斷線重連機制**
+  （對照 `esp32_mic_firmware.ino` 已有這段邏輯，音訊節點跟影像節點待遇不一致）。
+- `doc/TECH_NOTE_detection_methods.md`：整理聲音線（YAMNet，深度學習）與
+  影像線（幀差法，傳統演算法）的核心技術，以及兩條線各自被捨棄/未採用的前版方案：
+  聲音線 MAX9814→INMP441、Edge Impulse 自訓模型→YAMNet；影像線考慮過但未採用 MediaPipe 姿勢辨識。
+
+**下一步（明天）**
+
+1. **補上 ESP32-CAM 的 Wi-Fi 自動重連**（`esp32_cam_firmware.ino`）
+   直接抄 `esp32_mic_firmware.ino` 的 `loop()` 寫法：每輪迴圈檢查
+   `WiFi.status() != WL_CONNECTED` 就呼叫重連，讓兩個感測端待遇一致，
+   避免整夜因訊號閃斷而斷線不回來。
+
+2. **硬體實測（阻塞其他所有階段的前置作業）**
+   - INMP441 焊接組裝、接線（見 `doc/SPEC.md` 2.1 節）
+   - 兩片 ESP32 燒錄韌體，確認各自 Serial Monitor 印出的 IP
+   - 更新 `backend/config.py` 的 `STREAM_URL`／`LAPTOP_IP`
+   - 跑 `python backend/audio_monitor.py`，走一次完整端到端流程：
+     哭聲觸發警報＋截圖、活動量觸發「可能醒了」預警、`/photo`／`/status`／`/help` 指令
+
+3. **把兩條偵測線「整合成產品級系統」要做的事**
+   先釐清現況：`audio_monitor.py` 本來就是**唯一入口**，內部用 threading 把
+   哭聲偵測（UDP＋YAMNet）、影像活動量偵測（`StreamReader`＋`ActivityMonitor`）、
+   定時拍照、Telegram 指令輪詢全部跑在同一個 process 裡，兩條線本身已經是整合的——
+   不是「兩支獨立程式」要合併。真正離「產品級」還缺的是**無人值守長期運行的可靠度**：
+
+   | 項目 | 現況 | 要做的事 |
+   |---|---|---|
+   | 開機自動啟動 | 需手動執行 `python audio_monitor.py` | 用 NSSM 把它掛成 Windows 服務，開機自動啟動 |
+   | 崩潰自動重啟 | 程式掛了沒人知道、不會自動恢復 | NSSM 服務設定 crash 自動重啟；或外層 watchdog script 定期檢查 process 是否存活 |
+   | Log 管理 | 全部 `print` 到終端機，關掉視窗就消失 | 導到檔案＋做 log rotation（避免無限增長吃滿硬碟） |
+   | ESP32-CAM IP 位址 | DHCP 動態配置，每次重開機要人工更新 `STREAM_URL` | 到路由器設定 **DHCP 固定保留（static lease）**，兩個感測端 IP 固定下來，一勞永逸 |
+   | 感測端斷線通知 | 音訊節點離線已有通知（F1-5） | 影像節點（`StreamReader`）斷線目前只在終端機印訊息，沒有 Telegram 通知，建議補上，跟音訊節點待遇一致 |
+   | 校準 | 門檻皆為粗值（`MOTION_ALERT_RATIO`、`CRY_SCORE_THRESHOLD` 等） | 待 1、2 完成、系統穩定跑起來後，進入**階段 4**：`LOG_ONLY=True` 收集 3~5 天真實資料再定門檻 |
+
+   建議順序：先做 1（Wi-Fi 重連，小改動）→ 2（硬體實測，驗證整條 pipeline 真的能動）
+   → 校準門檻（階段 4）→ 最後才做服務化／自動重啟（放到最後是因為要等邏輯與門檻都穩定，
+   不然服務化後每次改程式都要重新部署，效率低）。
+
+---
+
 ## 2026-07-05　開機說明訊息 ＋ /help 指令
 
 **新增**
