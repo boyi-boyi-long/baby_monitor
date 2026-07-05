@@ -4,6 +4,30 @@
 
 ---
 
+## 2026-07-05　新增 ESP32-CAM 韌體存檔 ＋ /status 狀態查詢指令
+
+**新增**
+- `esp32_cam_firmware/esp32_cam_firmware.ino`：影像節點韌體存進版控（原取自網路範例，
+  移除品牌字樣，WiFi 帳密改回預留文字避免明文密碼進 git）。
+- `/status` 指令（`config.STATUS_COMMAND`）：Telegram 傳 `/status` 給 Bot，
+  回報「目前看起來安靜／可能醒了」文字判斷＋現場截圖。判斷邏輯只看**最近 30 秒**
+  活動比例（`MOTION_RECENT_SEC`），不用等滿 3 分鐘的預警視窗，做為即時查詢用途。
+
+**修改**
+- `backend/video_monitor.py`：把 `activity_loop` 函式改寫成 `ActivityMonitor` class，
+  活動視窗（`self.window`）從函式區域變數改成物件屬性，讓 `activity_loop` 執行緒（寫入）
+  跟 `telegram_commands` 的 `/status` 處理（讀取）能共用同一份資料。
+- `backend/telegram_commands.py`：`command_loop`/`start` 多接一個 `activity_monitor` 參數。
+- `backend/audio_monitor.py`：`main()` 改成先建立 `ActivityMonitor` 實例再啟動執行緒。
+- `config.py`/`config.example.py`：新增 `STATUS_COMMAND` 參數。
+- 同步更新 PRD（F2-5、US-7）、SPEC（3.4節）、README。
+
+**下一步**
+- 實測 `/status`：程式跑滿 30 秒後傳 `/status`，確認回報的安靜／可能醒了跟實際狀態一致；
+  也測開機不滿 30 秒時傳 `/status`，應回報「資料收集中」而不是報錯。
+
+---
+
 ## 2026-07-05　定時拍照＋Telegram 手動拍照指令
 
 **新增**

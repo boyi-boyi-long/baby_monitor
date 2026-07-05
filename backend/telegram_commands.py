@@ -13,8 +13,10 @@ import telegram_notify
 import video_monitor
 
 
-def command_loop(reader: video_monitor.StreamReader):
-    """獨立執行緒：輪詢 Telegram 新訊息，收到 PHOTO_COMMAND 就立即截圖回傳。"""
+def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor):
+    """獨立執行緒：輪詢 Telegram 新訊息，收到 PHOTO_COMMAND 就立即截圖回傳，
+    收到 STATUS_COMMAND 就回報目前是安靜還是可能醒了＋截圖。
+    """
     offset = None
 
     # 開機先把之前累積的舊訊息清掉（只拿 offset，不執行），
@@ -56,6 +58,15 @@ def command_loop(reader: video_monitor.StreamReader):
                 else:
                     telegram_notify.send_text(f"📷 手動截圖失敗（{now}），攝影機連不上")
 
+            elif text == config.STATUS_COMMAND:
+                now = datetime.now().strftime("%H:%M:%S")
+                status_text = activity_monitor.get_status_text()
+                frame = reader.get_frame(timeout=2.0)
+                if frame is not None:
+                    telegram_notify.send_photo(frame, caption=f"{status_text}\n（{now}）")
+                else:
+                    telegram_notify.send_text(f"{status_text}\n（{now}，攝影機截圖失敗）")
 
-def start(reader: video_monitor.StreamReader):
-    threading.Thread(target=command_loop, args=(reader,), daemon=True).start()
+
+def start(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor):
+    threading.Thread(target=command_loop, args=(reader, activity_monitor), daemon=True).start()

@@ -75,13 +75,17 @@
 
 ### 3.4 手動指令 / 定時拍照（backend/telegram_commands.py、video_monitor.py）
 - `telegram_commands.command_loop`：long polling 輪詢 `getUpdates`
-  （逾時 `TELEGRAM_POLL_TIMEOUT` 秒），收到文字等於 `PHOTO_COMMAND`（預設 `/photo`）
-  且 `chat_id` 符合 `config.TELEGRAM_CHAT_ID` 才觸發即時截圖，其餘一律忽略
-  （防止陌生人傳訊息觸發拍照）。
+  （逾時 `TELEGRAM_POLL_TIMEOUT` 秒），`chat_id` 需符合 `config.TELEGRAM_CHAT_ID` 才處理指令，
+  其餘一律忽略（防止陌生人傳訊息觸發拍照）：
+  - `PHOTO_COMMAND`（預設 `/photo`）：立即截圖回傳
+  - `STATUS_COMMAND`（預設 `/status`）：呼叫 `ActivityMonitor.get_status_text()`
+    （只看最近 `MOTION_RECENT_SEC` 秒活動比例，不等滿 3 分鐘）回報安靜／可能醒了文字＋截圖
 - 開機時會先呼叫一次 `getUpdates` 只取 offset、不執行動作，清掉離線期間累積的舊訊息，
   避免一開機就被回放觸發。
 - `video_monitor.periodic_snapshot_loop`：每 `PERIODIC_SNAPSHOT_SEC` 秒（預設 900 = 15 分鐘）
   自動傳一張畫面，`LOG_ONLY=True` 時不發送。
+- `video_monitor.ActivityMonitor`：把活動視窗（`self.window`）包成 class 而非函式區域變數，
+  讓 `activity_loop` 執行緒（寫入）與 `command_loop` 執行緒（`/status` 讀取）共用同一份資料。
 
 ## 4. 演算法規格
 
@@ -135,6 +139,7 @@
 | PERIODIC_SNAPSHOT_SEC | 900 | 定時拍照間隔（秒） |
 | TELEGRAM_POLL_TIMEOUT | 25 | 指令輪詢 long-poll 逾時秒數 |
 | PHOTO_COMMAND | "/photo" | 觸發手動拍照的指令文字 |
+| STATUS_COMMAND | "/status" | 觸發狀態查詢（安靜／可能醒了＋截圖）的指令文字 |
 
 韌體端參數：GAIN_SHIFT=11（增益，9~13 可調）、SAMPLES_PER_PACKET=512。
 

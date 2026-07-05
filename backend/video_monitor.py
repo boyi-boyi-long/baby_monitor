@@ -96,64 +96,82 @@ def send_motion_alert(reader: StreamReader, mean_ratio: float):
         telegram_notify.send_text(caption + "（攝影機截圖失敗）")
 
 
-def activity_loop(reader: StreamReader):
-    """獨立執行緒：每秒計算一次活動量，判斷是否要發「可能醒了」預警。"""
-    window = deque(maxlen=config.MOTION_WINDOW_SEC)
-    prev_gray = None
-    last_alert_time = 0.0
+class ActivityMonitor:
+    """每秒計算一次活動量，判斷是否要發「可能醒了」預警。
+    活動視窗存在 self.window，讓 telegram_commands 的 /status 指令也能即時查詢目前狀態
+    （run() 在 activity 執行緒裡寫，get_status_text() 在指令執行緒裡讀，
+    deque 的 append/讀取在 CPython 的 GIL 下不需要額外加鎖）。
+    """
 
-    new_file = not os.path.exists(config.MOTION_LOG_CSV)
-    log_f = open(config.MOTION_LOG_CSV, "a", newline="", encoding="utf-8")
-    log_w = csv.writer(log_f)
-    if new_file:
-        log_w.writerow(["time", "motion_ratio", "active", "mean_180s"])
+    def __init__(self):
+        self.window = deque(maxlen=config.MOTION_WINDOW_SEC)
+        self.prev_gray = None
+        self.last_alert_time = 0.0
 
-    while True:
-        time.sleep(1)
-
-        frame = reader.get_frame(timeout=2.0)
-        if frame is None:
-            continue  # 串流還沒接上或暫時沒畫面，這一輪先跳過
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        if prev_gray is None:
-            prev_gray = gray
-            continue  # 第一幀沒有「前一幀」可比對
-
-        diff = cv2.absdiff(gray, prev_gray)
-        motion_ratio = float((diff > config.MOTION_DIFF_PIXEL_THRESHOLD).sum() / diff.size)
-        prev_gray = gray
-
-        active = motion_ratio > config.MOTION_PIXEL_RATIO_THRESHOLD
-        window.append(active)
-        mean_full = sum(window) / len(window)
-
-        log_w.writerow([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            f"{motion_ratio:.4f}",
-            int(active),
-            f"{mean_full:.4f}",
-        ])
-        log_f.flush()
-
-        if len(window) < window.maxlen:
-            continue  # 資料還沒滿 3 分鐘，先不做預警判斷
-
-        recent = list(window)[-config.MOTION_RECENT_SEC:]
+    def get_status_text(self) -> str:
+        """給 /status 指令用：只看「最近 30 秒」判斷現在是安靜還是有活動，不用等滿 3 分鐘。"""
+        if len(self.window) < config.MOTION_RECENT_SEC:
+            return "📊 資料收集中，開機不滿 30 秒，請稍後再查。"
+        recent = list(self.window)[-config.MOTION_RECENT_SEC:]
         mean_recent = sum(recent) / len(recent)
-        still_active_now = mean_recent >= config.MOTION_STILL_RATIO
+        if mean_recent >= config.MOTION_STILL_RATIO:
+            return f"🌟 目前看起來有活動，可能醒了（最近30秒活動比例 {mean_recent:.2f}）"
+        return f"😴 目前看起來安靜，應該在睡覺（最近30秒活動比例 {mean_recent:.2f}）"
 
-        if (
-            mean_full > config.MOTION_ALERT_RATIO
-            and still_active_now
-            and time.time() - last_alert_time > config.MOTION_ALERT_COOLDOWN_SEC
-        ):
-            last_alert_time = time.time()
-            window.clear()
-            print(">>> 觸發「可能醒了」預警！<<<")
-            if not config.LOG_ONLY:
-                threading.Thread(
-                    target=send_motion_alert, args=(reader, mean_full), daemon=True
-                ).start()
-        elif mean_full > config.MOTION_ALERT_RATIO and not still_active_now:
-            print("（活動量曾升高但最近已恢復平靜，視為短暫扭動，不通知）")
+    def run(self, reader: StreamReader):
+        """獨立執行緒：每秒跑一次，維護 self.window 並判斷要不要觸發預警。"""
+        new_file = not os.path.exists(config.MOTION_LOG_CSV)
+        log_f = open(config.MOTION_LOG_CSV, "a", newline="", encoding="utf-8")
+        log_w = csv.writer(log_f)
+        if new_file:
+            log_w.writerow(["time", "motion_ratio", "active", "mean_180s"])
+
+        while True:
+            time.sleep(1)
+
+            frame = reader.get_frame(timeout=2.0)
+            if frame is None:
+                continue  # 串流還沒接上或暫時沒畫面，這一輪先跳過
+
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            if self.prev_gray is None:
+                self.prev_gray = gray
+                continue  # 第一幀沒有「前一幀」可比對
+
+            diff = cv2.absdiff(gray, self.prev_gray)
+            motion_ratio = float((diff > config.MOTION_DIFF_PIXEL_THRESHOLD).sum() / diff.size)
+            self.prev_gray = gray
+
+            active = motion_ratio > config.MOTION_PIXEL_RATIO_THRESHOLD
+            self.window.append(active)
+            mean_full = sum(self.window) / len(self.window)
+
+            log_w.writerow([
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                f"{motion_ratio:.4f}",
+                int(active),
+                f"{mean_full:.4f}",
+            ])
+            log_f.flush()
+
+            if len(self.window) < self.window.maxlen:
+                continue  # 資料還沒滿 3 分鐘，先不做預警判斷
+
+            recent = list(self.window)[-config.MOTION_RECENT_SEC:]
+            mean_recent = sum(recent) / len(recent)
+            still_active_now = mean_recent >= config.MOTION_STILL_RATIO
+
+            if (
+                mean_full > config.MOTION_ALERT_RATIO
+                and still_active_now
+                and time.time() - self.last_alert_time > config.MOTION_ALERT_COOLDOWN_SEC
+            ):
+                self.last_alert_time = time.time()
+                self.window.clear()
+                print(">>> 觸發「可能醒了」預警！<<<")
+                if not config.LOG_ONLY:
+                    threading.Thread(
+                        target=send_motion_alert, args=(reader, mean_full), daemon=True
+                    ).start()
+            elif mean_full > config.MOTION_ALERT_RATIO and not still_active_now:
+                print("（活動量曾升高但最近已恢復平靜，視為短暫扭動，不通知）")

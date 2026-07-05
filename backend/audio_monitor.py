@@ -81,11 +81,12 @@ def main():
     threading.Thread(target=udp_receiver, daemon=True).start()
 
     stream_reader = video_monitor.StreamReader(config.STREAM_URL).start()
-    threading.Thread(target=video_monitor.activity_loop, args=(stream_reader,), daemon=True).start()
+    activity_monitor = video_monitor.ActivityMonitor()
+    threading.Thread(target=activity_monitor.run, args=(stream_reader,), daemon=True).start()
     threading.Thread(
         target=video_monitor.periodic_snapshot_loop, args=(stream_reader,), daemon=True
     ).start()
-    telegram_commands.start(stream_reader)
+    telegram_commands.start(stream_reader, activity_monitor)
 
     cry_history = deque(maxlen=config.CRY_WINDOW)
     last_alert_time = 0.0
