@@ -80,6 +80,10 @@
   - `PHOTO_COMMAND`（預設 `/photo`）：立即截圖回傳
   - `STATUS_COMMAND`（預設 `/status`）：呼叫 `ActivityMonitor.get_status_text()`
     （只看最近 `MOTION_RECENT_SEC` 秒活動比例，不等滿 3 分鐘）回報安靜／可能醒了文字＋截圖
+  - `HELP_COMMAND`（預設 `/help`）或 Telegram 內建 `/start`：回報 `build_help_text()`
+    （使用說明＋指令列表）
+- `telegram_commands.send_startup_message()`：程式啟動時發一次「系統已啟動」＋
+  `build_help_text()`，`LOG_ONLY=True` 時不發（跟其他通知一致）。
 - 開機時會先呼叫一次 `getUpdates` 只取 offset、不執行動作，清掉離線期間累積的舊訊息，
   避免一開機就被回放觸發。
 - `video_monitor.periodic_snapshot_loop`：每 `PERIODIC_SNAPSHOT_SEC` 秒（預設 900 = 15 分鐘）
@@ -140,6 +144,7 @@
 | TELEGRAM_POLL_TIMEOUT | 25 | 指令輪詢 long-poll 逾時秒數 |
 | PHOTO_COMMAND | "/photo" | 觸發手動拍照的指令文字 |
 | STATUS_COMMAND | "/status" | 觸發狀態查詢（安靜／可能醒了＋截圖）的指令文字 |
+| HELP_COMMAND | "/help" | 觸發使用說明的指令文字（`/start` 也會觸發同一份說明） |
 
 韌體端參數：GAIN_SHIFT=11（增益，9~13 可調）、SAMPLES_PER_PACKET=512。
 

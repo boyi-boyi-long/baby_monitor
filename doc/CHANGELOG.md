@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-05　開機說明訊息 ＋ /help 指令
+
+**新增**
+- `telegram_commands.build_help_text()`：組出「系統說明＋指令列表」文字，
+  給開機通知跟 `/help`／`/start` 共用，避免同一段文字寫兩次。
+- `telegram_commands.send_startup_message()`：程式啟動時發一次「✅ 系統已啟動」＋說明文字，
+  `LOG_ONLY=True` 時不發（跟其他通知一致）。
+- `/help` 指令（`config.HELP_COMMAND`）：隨時可查說明；Telegram 內建的 `/start`
+  （使用者第一次點 Bot 的「Start」按鈕會自動傳這個文字）也觸發同一份說明——
+  這樣不管是「使用者第一次連上 Bot」還是「程式重開機」，都會看到使用說明。
+- `config.py`/`config.example.py` 新增 `HELP_COMMAND`。
+
+**修改**
+- `backend/audio_monitor.py`：`main()` 最後呼叫 `telegram_commands.send_startup_message()`。
+- 同步更新 PRD（F2-6、US-8）、SPEC（3.4節、參數表）、README。
+
+**下一步**
+- 實測：把程式跑起來，確認 Telegram 收到「✅ 系統已啟動」的說明訊息；
+  再傳 `/help` 確認能重複查到同一份說明。
+
+---
+
 ## 2026-07-05　新增 ESP32-CAM 韌體存檔 ＋ /status 狀態查詢指令
 
 **新增**

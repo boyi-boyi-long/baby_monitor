@@ -61,6 +61,7 @@ python audio_monitor.py
 - 程式會每 15 分鐘自動傳一張現場畫面到 Telegram（`config.py` 的 `PERIODIC_SNAPSHOT_SEC` 可調）。
 - 想臨時看一眼寶寶現在的樣子：直接在 Telegram 傳 `/photo` 給你的 Bot，幾秒內會回傳一張現場截圖。
 - 想知道現在是安靜還是可能醒了：傳 `/status` 給 Bot，會回傳文字判斷（🌟可能醒了／😴看起來在睡覺）＋現場截圖。
+- 忘記有哪些指令：傳 `/help` 給 Bot（或在 Bot 對話框按 Telegram 內建的「Start」）即可再看一次說明。程式開機時也會自動發一次同樣的說明訊息。
 
 ## 常見問題
 

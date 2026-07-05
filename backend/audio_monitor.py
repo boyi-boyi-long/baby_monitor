@@ -87,6 +87,7 @@ def main():
         target=video_monitor.periodic_snapshot_loop, args=(stream_reader,), daemon=True
     ).start()
     telegram_commands.start(stream_reader, activity_monitor)
+    telegram_commands.send_startup_message()
 
     cry_history = deque(maxlen=config.CRY_WINDOW)
     last_alert_time = 0.0

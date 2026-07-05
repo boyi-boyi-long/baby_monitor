@@ -13,6 +13,28 @@ import telegram_notify
 import video_monitor
 
 
+def build_help_text() -> str:
+    """使用說明＋指令列表。開機通知跟 /help、/start 指令共用同一份文字。"""
+    return (
+        "👶 嬰兒睡眠監測系統\n\n"
+        "系統運作中會自動通知：\n"
+        "🚨 偵測到寶寶哭聲\n"
+        "📱 活動量持續偏高，可能醒了\n"
+        f"📷 每 {config.PERIODIC_SNAPSHOT_SEC // 60} 分鐘定時回報現場畫面\n\n"
+        "可用指令：\n"
+        f"{config.PHOTO_COMMAND} — 立即拍一張現場照片\n"
+        f"{config.STATUS_COMMAND} — 查詢目前是安靜還是可能醒了（附照片）\n"
+        f"{config.HELP_COMMAND} — 顯示這則說明"
+    )
+
+
+def send_startup_message():
+    """程式開機時發一次上線通知＋使用說明（LOG_ONLY 校準模式不發，跟其他通知一致）。"""
+    if config.LOG_ONLY:
+        return
+    telegram_notify.send_text("✅ 系統已啟動，開始監測。\n\n" + build_help_text())
+
+
 def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor):
     """獨立執行緒：輪詢 Telegram 新訊息，收到 PHOTO_COMMAND 就立即截圖回傳，
     收到 STATUS_COMMAND 就回報目前是安靜還是可能醒了＋截圖。
@@ -28,7 +50,10 @@ def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_mon
     except Exception as e:
         print(f"[指令] 初始化輪詢失敗: {e}")
 
-    print(f"[指令] Telegram 指令監聽已啟動，傳 {config.PHOTO_COMMAND} 可立即拍照。")
+    print(
+        f"[指令] Telegram 指令監聽已啟動："
+        f"{config.PHOTO_COMMAND} 拍照／{config.STATUS_COMMAND} 查狀態／{config.HELP_COMMAND} 說明"
+    )
 
     while True:
         try:
@@ -66,6 +91,9 @@ def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_mon
                     telegram_notify.send_photo(frame, caption=f"{status_text}\n（{now}）")
                 else:
                     telegram_notify.send_text(f"{status_text}\n（{now}，攝影機截圖失敗）")
+
+            elif text in (config.HELP_COMMAND, "/start"):
+                telegram_notify.send_text(build_help_text())
 
 
 def start(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor):
