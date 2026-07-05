@@ -21,10 +21,14 @@
   backend/audio_monitor.py（主程式）
   ├─ Thread-1  udp_receiver：收音訊 → 環形緩衝區
   ├─ 主迴圈    每 0.5s：YAMNet 推論 → 滑動視窗判斷 → 警報決策
-  └─ Thread-N  send_alert：抓截圖 + Telegram 發送（每次警報一條）
+  ├─ Thread-N  send_alert：抓截圖 + Telegram 發送（每次警報一條）
+  ├─ Thread    video_monitor.StreamReader：常駐讀 ESP32-CAM，只留最新一幀
+  ├─ Thread    video_monitor.activity_loop：每秒幀差 → 活動量判斷 →「可能醒了」預警
+  ├─ Thread    video_monitor.periodic_snapshot_loop：每 15 分鐘定時拍照
+  └─ Thread    telegram_commands.command_loop：輪詢 /photo 指令 → 立即截圖回傳
 
 【通知層】
-  Telegram Bot API（HTTPS，僅出網的通道）
+  Telegram Bot API（HTTPS，僅出網的通道；getUpdates 為唯一入網的通道）
 ```
 
 ## 2. 硬體規格
@@ -63,7 +67,18 @@
 ### 3.3 Telegram
 - `POST /bot<token>/sendMessage`（文字）
 - `POST /bot<token>/sendPhoto`（multipart，JPEG 品質 85，記憶體內編碼不落地）
+- `GET /bot<token>/getUpdates`（long polling 拉取使用者傳給 Bot 的訊息，見 3.4）
 - 所有呼叫含 timeout（10~15s）與例外吞噬，失敗不影響主迴圈
+
+### 3.4 手動指令 / 定時拍照（backend/telegram_commands.py、video_monitor.py）
+- `telegram_commands.command_loop`：long polling 輪詢 `getUpdates`
+  （逾時 `TELEGRAM_POLL_TIMEOUT` 秒），收到文字等於 `PHOTO_COMMAND`（預設 `/photo`）
+  且 `chat_id` 符合 `config.TELEGRAM_CHAT_ID` 才觸發即時截圖，其餘一律忽略
+  （防止陌生人傳訊息觸發拍照）。
+- 開機時會先呼叫一次 `getUpdates` 只取 offset、不執行動作，清掉離線期間累積的舊訊息，
+  避免一開機就被回放觸發。
+- `video_monitor.periodic_snapshot_loop`：每 `PERIODIC_SNAPSHOT_SEC` 秒（預設 900 = 15 分鐘）
+  自動傳一張畫面，`LOG_ONLY=True` 時不發送。
 
 ## 4. 演算法規格
 
@@ -114,6 +129,9 @@
 | MOTION_WINDOW_SEC / MOTION_RECENT_SEC | 180 / 30 | 活動視窗長度（3分鐘）／近期把關視窗（30秒） |
 | MOTION_ALERT_RATIO / MOTION_STILL_RATIO | 0.3 / 0.1 | 3分鐘視窗預警門檻／30秒視窗靜止門檻（皆待階段4校準） |
 | MOTION_ALERT_COOLDOWN_SEC | 120 | 活動量預警冷卻 |
+| PERIODIC_SNAPSHOT_SEC | 900 | 定時拍照間隔（秒） |
+| TELEGRAM_POLL_TIMEOUT | 25 | 指令輪詢 long-poll 逾時秒數 |
+| PHOTO_COMMAND | "/photo" | 觸發手動拍照的指令文字 |
 
 韌體端參數：GAIN_SHIFT=11（增益，9~13 可調）、SAMPLES_PER_PACKET=512。
 

@@ -4,6 +4,32 @@
 
 ---
 
+## 2026-07-05　定時拍照＋Telegram 手動拍照指令
+
+**新增**
+- `backend/telegram_commands.py`
+  - `command_loop`：long polling 輪詢 `getUpdates`，收到 `/photo`（`config.PHOTO_COMMAND`）
+    且來自 `config.TELEGRAM_CHAT_ID` 才觸發即時截圖回傳；其餘訊息忽略（防陌生人觸發）。
+  - 開機時先取一次 offset、不執行動作，清掉離線期間累積的舊訊息，避免一開機被回放觸發。
+- `backend/video_monitor.py` 新增 `periodic_snapshot_loop`：每 `PERIODIC_SNAPSHOT_SEC`
+  （預設 900 秒＝15 分鐘）自動傳一張現場畫面；`LOG_ONLY=True` 時不發送。
+- `telegram_notify.py` 新增 `get_updates()`：呼叫 Telegram `getUpdates` API。
+
+**修改**
+- `backend/config.py`、`backend/config.example.py`：新增 `PERIODIC_SNAPSHOT_SEC`、
+  `TELEGRAM_POLL_TIMEOUT`、`PHOTO_COMMAND` 三個參數。
+- `audio_monitor.py`：`main()` 多啟動兩條執行緒（定時拍照、指令監聽）。
+- `doc/PRD.md`：階段2新增 F2-3（定時拍照）、F2-4（手動拍照指令）、US-6。
+- `doc/SPEC.md`：架構圖補上新執行緒、新增 3.4 節說明、參數表補三列。
+- `README.md`：新增「定時拍照／手動拍照指令」使用說明。
+
+**下一步**
+- 實測 `/photo` 指令：程式跑起來後在 Telegram 傳 `/photo` 給 Bot，確認幾秒內收到截圖。
+- 確認換人手機、或陌生人傳 `/photo` 給同一個 Bot 時**不會**觸發（`chat_id` 過濾是否生效）。
+- 15 分鐘定時拍照比較難即時驗證，可以先把 `PERIODIC_SNAPSHOT_SEC` 臨時調成 60 秒測完再改回 900。
+
+---
+
 ## 2026-07-05　階段 3：影像活動量「可能醒了」預警
 
 **新增**

@@ -71,6 +71,20 @@ class StreamReader:
         return self
 
 
+def periodic_snapshot_loop(reader: StreamReader):
+    """獨立執行緒：每隔 PERIODIC_SNAPSHOT_SEC 定時傳一張畫面到 Telegram（不管有沒有警報）。"""
+    while True:
+        time.sleep(config.PERIODIC_SNAPSHOT_SEC)
+        if config.LOG_ONLY:
+            continue  # 校準模式：不發任何通知
+        now = datetime.now().strftime("%H:%M:%S")
+        frame = reader.get_frame(timeout=2.0)
+        if frame is not None:
+            telegram_notify.send_photo(frame, caption=f"📷 定時畫面（{now}）")
+        else:
+            print(f"[定時截圖] 失敗：攝影機連不上（{now}）")
+
+
 def send_motion_alert(reader: StreamReader, mean_ratio: float):
     """發送「可能醒了」預警（在獨立執行緒執行，不阻塞活動量判斷主迴圈）。"""
     now = datetime.now().strftime("%H:%M:%S")

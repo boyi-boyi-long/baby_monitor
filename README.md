@@ -56,6 +56,11 @@ python audio_monitor.py
 3. 用 Excel 打開 CSV 畫折線圖：日常噪音的分數 vs 真哭時的分數
 4. 把 `CRY_SCORE_THRESHOLD` 設在兩者中間，改回 `LOG_ONLY = False`
 
+## 五之二、定時拍照 / 手動拍照指令
+
+- 程式會每 15 分鐘自動傳一張現場畫面到 Telegram（`config.py` 的 `PERIODIC_SNAPSHOT_SEC` 可調）。
+- 想臨時看一眼寶寶現在的樣子：直接在 Telegram 傳 `/photo` 給你的 Bot，幾秒內會回傳一張現場截圖。
+
 ## 常見問題
 
 - **終端機一直沒有分數滾動** → ESP32 韌體裡的筆電 IP 填錯，或防火牆擋了 UDP 5005

@@ -38,3 +38,16 @@ def send_photo(frame, caption: str = "") -> bool:
     except Exception as e:
         print(f"[Telegram] 發送圖片失敗: {e}")
         return False
+
+
+def get_updates(offset=None, timeout: int = 25) -> list:
+    """向 Telegram 拉取新訊息（long polling）。
+    offset：上次處理到的 update_id + 1；傳 None 表示從最新的開始拉。
+    逾時內沒有新訊息就回傳空 list（不是錯誤）。
+    """
+    params = {"timeout": timeout}
+    if offset is not None:
+        params["offset"] = offset
+    r = requests.get(f"{API_BASE}/getUpdates", params=params, timeout=timeout + 10)
+    r.raise_for_status()
+    return r.json().get("result", [])

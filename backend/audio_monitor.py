@@ -23,6 +23,7 @@ from datetime import datetime
 import numpy as np
 
 import config
+import telegram_commands
 import telegram_notify
 import video_monitor
 
@@ -81,6 +82,10 @@ def main():
 
     stream_reader = video_monitor.StreamReader(config.STREAM_URL).start()
     threading.Thread(target=video_monitor.activity_loop, args=(stream_reader,), daemon=True).start()
+    threading.Thread(
+        target=video_monitor.periodic_snapshot_loop, args=(stream_reader,), daemon=True
+    ).start()
+    telegram_commands.start(stream_reader)
 
     cry_history = deque(maxlen=config.CRY_WINDOW)
     last_alert_time = 0.0
