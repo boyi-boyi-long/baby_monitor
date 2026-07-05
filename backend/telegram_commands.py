@@ -24,7 +24,11 @@ def build_help_text() -> str:
         "可用指令：\n"
         f"{config.PHOTO_COMMAND} — 立即拍一張現場照片\n"
         f"{config.STATUS_COMMAND} — 查詢目前是安靜還是可能醒了（附照片）\n"
-        f"{config.HELP_COMMAND} — 顯示這則說明"
+        f"{config.HELP_COMMAND} — 顯示這則說明\n\n"
+        f"⏳ 提醒：程式每次重開機後，📱 自動預警需要先收集 "
+        f"{config.MOTION_WINDOW_SEC // 60} 分鐘活動資料才會開始判斷（避免誤報），"
+        f"這段時間內可以用 {config.STATUS_COMMAND} 查看即時狀態（開機滿 "
+        f"{config.MOTION_RECENT_SEC} 秒即可查）。"
     )
 
 
