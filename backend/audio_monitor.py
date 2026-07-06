@@ -45,7 +45,10 @@ CRY_IDX = [i for i, n in enumerate(class_names) if n in config.CRY_CLASSES]
 print(f"YAMNet 就緒。監看類別: {[class_names[i] for i in CRY_IDX]}")
 
 # ---------- 共享狀態 ----------
-ring = deque(maxlen=config.SAMPLE_RATE)   # 最近 1 秒的音訊樣本
+ring = deque(maxlen=config.SAMPLE_RATE)   # 最近 1 秒的音訊樣本（YAMNet 推論用）
+clip_buffer = deque(                       # 最近 N 秒的音訊歷史（警報附帶哭聲片段用）
+    maxlen=config.SAMPLE_RATE * config.CRY_CLIP_SECONDS
+)
 ring_lock = threading.Lock()
 last_packet_time = [0.0]                  # 最後收到音訊封包的時間
 
@@ -60,6 +63,7 @@ def udp_receiver():
         samples = np.frombuffer(data, dtype=np.int16)
         with ring_lock:
             ring.extend(samples)
+            clip_buffer.extend(samples)
         last_packet_time[0] = time.time()
 
 
@@ -75,6 +79,14 @@ def send_alert(stream_reader: video_monitor.StreamReader, cry_score: float):
         telegram_notify.send_photo(frame, caption=caption)
     else:
         telegram_notify.send_text(caption + "（攝影機截圖失敗）")
+
+    # 附上觸發前最近 N 秒的現場錄音（含哭聲起始的前後脈絡）
+    if config.SEND_CRY_CLIP:
+        with ring_lock:
+            clip = np.array(clip_buffer, dtype=np.int16)
+        if len(clip) >= config.SAMPLE_RATE:   # 至少累積 1 秒才值得傳
+            secs = len(clip) // config.SAMPLE_RATE
+            telegram_notify.send_audio_clip(clip, caption=f"🔊 哭聲片段（最近 {secs} 秒）")
 
 
 def main():

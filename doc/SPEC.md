@@ -70,6 +70,8 @@
 ### 3.3 Telegram
 - `POST /bot<token>/sendMessage`（文字）
 - `POST /bot<token>/sendPhoto`（multipart，JPEG 品質 85，記憶體內編碼不落地）
+- `POST /bot<token>/sendDocument`（哭聲錄音片段：int16 樣本記憶體內包成 WAV 上傳，
+  檔名 cry_clip.wav；用 sendDocument 而非 sendAudio 因後者只收 MP3/M4A）
 - `GET /bot<token>/getUpdates`（long polling 拉取使用者傳給 Bot 的訊息，見 3.4）
 - 所有呼叫含 timeout（10~15s）與例外吞噬，失敗不影響主迴圈
 
@@ -134,6 +136,8 @@
 | CRY_WINDOW / CRY_TRIGGER_COUNT | 6 / 4 | 滑動視窗長度 / 觸發票數 |
 | ALERT_COOLDOWN_SEC | 120 | 警報冷卻 |
 | OFFLINE_WARN_SEC | 60 | 離線通知門檻 |
+| SEND_CRY_CLIP | True | 哭聲警報是否附帶現場錄音片段（WAV） |
+| CRY_CLIP_SECONDS | 10 | 錄音片段長度：觸發當下往回取最近 N 秒 |
 | LOG_ONLY | False | True = 校準模式（只記錄不通知） |
 | MOTION_DIFF_PIXEL_THRESHOLD | 25 | 單一像素亮度差門檻 |
 | MOTION_PIXEL_RATIO_THRESHOLD | 0.02 | 一幀「變動像素」佔比門檻，超過算這一秒「有在動」 |

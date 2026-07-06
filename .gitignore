@@ -6,6 +6,9 @@ backend/cry_scores.csv
 backend/motion_scores.csv
 *.log
 
+# 修改前的手動備份檔
+*.bak-*
+
 # Python
 __pycache__/
 *.pyc

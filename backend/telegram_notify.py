@@ -1,4 +1,7 @@
-"""Telegram 通知模組：發文字、發圖片。所有呼叫都不會拋出例外影響主程式。"""
+"""Telegram 通知模組：發文字、發圖片、發音訊片段。所有呼叫都不會拋出例外影響主程式。"""
+import io
+import wave
+
 import cv2
 import requests
 import config
@@ -37,6 +40,32 @@ def send_photo(frame, caption: str = "") -> bool:
         return True
     except Exception as e:
         print(f"[Telegram] 發送圖片失敗: {e}")
+        return False
+
+
+def send_audio_clip(samples, caption: str = "") -> bool:
+    """samples 是 int16 的 numpy 陣列（16kHz 單聲道），
+    在記憶體內包成 WAV 檔直接上傳（sendDocument），不落地。
+    用 sendDocument 而非 sendAudio：Telegram 的 sendAudio 只收 MP3/M4A，
+    WAV 走文件通道，手機端一樣可以直接點開播放。
+    """
+    try:
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)                    # int16 = 2 bytes
+            w.setframerate(config.SAMPLE_RATE)
+            w.writeframes(samples.tobytes())
+        r = requests.post(
+            f"{API_BASE}/sendDocument",
+            data={"chat_id": config.TELEGRAM_CHAT_ID, "caption": caption},
+            files={"document": ("cry_clip.wav", buf.getvalue(), "audio/wav")},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"[Telegram] 發送音訊片段失敗: {e}")
         return False
 
 
