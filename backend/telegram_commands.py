@@ -24,6 +24,7 @@ def build_help_text() -> str:
         "可用指令：\n"
         f"{config.PHOTO_COMMAND} — 立即拍一張現場照片\n"
         f"{config.STATUS_COMMAND} — 查詢目前是安靜還是可能醒了（附照片）\n"
+        f"{config.SOUND_COMMAND} — 回傳最近現場錄音片段＋目前哭聲分數狀態\n"
         f"{config.HELP_COMMAND} — 顯示這則說明\n\n"
         f"⏳ 提醒：程式每次重開機後，📱 自動預警需要先收集 "
         f"{config.MOTION_WINDOW_SEC // 60} 分鐘活動資料才會開始判斷（避免誤報），"
@@ -39,9 +40,10 @@ def send_startup_message():
     telegram_notify.send_text("✅ 系統已啟動，開始監測。\n\n" + build_help_text())
 
 
-def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor):
+def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor, audio_monitor):
     """獨立執行緒：輪詢 Telegram 新訊息，收到 PHOTO_COMMAND 就立即截圖回傳，
-    收到 STATUS_COMMAND 就回報目前是安靜還是可能醒了＋截圖。
+    收到 STATUS_COMMAND 就回報目前是安靜還是可能醒了＋截圖，
+    收到 SOUND_COMMAND 就回傳最近現場錄音片段＋目前哭聲分數狀態。
     """
     offset = None
 
@@ -56,7 +58,8 @@ def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_mon
 
     print(
         f"[指令] Telegram 指令監聽已啟動："
-        f"{config.PHOTO_COMMAND} 拍照／{config.STATUS_COMMAND} 查狀態／{config.HELP_COMMAND} 說明"
+        f"{config.PHOTO_COMMAND} 拍照／{config.STATUS_COMMAND} 查狀態／"
+        f"{config.SOUND_COMMAND} 錄音／{config.HELP_COMMAND} 說明"
     )
 
     while True:
@@ -96,9 +99,25 @@ def command_loop(reader: video_monitor.StreamReader, activity_monitor: video_mon
                 else:
                     telegram_notify.send_text(f"{status_text}\n（{now}，攝影機截圖失敗）")
 
+            elif text == config.SOUND_COMMAND:
+                now = datetime.now().strftime("%H:%M:%S")
+                status_text = audio_monitor.get_status_text()
+                clip = audio_monitor.get_recent_clip()
+                if len(clip) >= config.SAMPLE_RATE:
+                    secs = len(clip) // config.SAMPLE_RATE
+                    ok = telegram_notify.send_audio_clip(
+                        clip, caption=f"{status_text}\n（{now}，最近 {secs} 秒現場錄音）"
+                    )
+                    if not ok:
+                        telegram_notify.send_text(status_text + "（錄音傳送失敗）")
+                else:
+                    telegram_notify.send_text(status_text + "\n（錄音資料不足，請稍後再試）")
+
             elif text in (config.HELP_COMMAND, "/start"):
                 telegram_notify.send_text(build_help_text())
 
 
-def start(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor):
-    threading.Thread(target=command_loop, args=(reader, activity_monitor), daemon=True).start()
+def start(reader: video_monitor.StreamReader, activity_monitor: video_monitor.ActivityMonitor, audio_monitor):
+    threading.Thread(
+        target=command_loop, args=(reader, activity_monitor, audio_monitor), daemon=True
+    ).start()

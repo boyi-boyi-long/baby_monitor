@@ -39,6 +39,7 @@ PERIODIC_SNAPSHOT_SEC = 900   # 定時拍照間隔（秒），15 分鐘
 TELEGRAM_POLL_TIMEOUT = 25    # 輪詢 Telegram 新訊息的 long-poll 逾時秒數
 PHOTO_COMMAND = "/photo"      # 在 Telegram 傳這個文字給 Bot，立即回傳一張截圖
 STATUS_COMMAND = "/status"    # 在 Telegram 傳這個文字給 Bot，回報目前是安靜還是可能醒了＋截圖
+SOUND_COMMAND = "/sound"      # 在 Telegram 傳這個文字給 Bot，回傳最近現場錄音片段＋目前哭聲分數狀態
 HELP_COMMAND = "/help"        # 在 Telegram 傳這個文字給 Bot，顯示使用說明＋指令列表
                                # （Telegram 內建的 /start 按鈕也會觸發同一份說明）
 

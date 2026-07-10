@@ -24,7 +24,7 @@
 // ======== 請修改這三行 ========
 const char* WIFI_SSID = "你的WiFi名稱";
 const char* WIFI_PASS = "你的WiFi密碼";
-const char* LAPTOP_IP = "10.244.134.XXX";   // 筆電的區網 IP（cmd 輸入 ipconfig 查）
+const char* LAPTOP_IP = "10.244.134.160";   // 筆電的區網 IP（cmd 輸入 ipconfig 查）
 // ==============================
 
 const int UDP_PORT = 5005;

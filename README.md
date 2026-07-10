@@ -1,4 +1,4 @@
-# 嬰兒監測系統（階段 1+2：哭聲警報機 + 截圖）
+# 嬰兒監測系統（階段 1~3：哭聲警報機 + 活動量預警）
 
 架構：`ESP32+INMP441 →(UDP音訊)→ 筆電 YAMNet → Telegram 警報（附 ESP32-CAM 截圖）`
 
@@ -52,15 +52,17 @@ python audio_monitor.py
 ## 六、校準（正式上線前建議做 3~5 天）
 
 1. `config.py` 設 `LOG_ONLY = True` → 只記錄不通知
-2. 正常生活幾天，所有分數會存在 `cry_scores.csv`
-3. 用 Excel 打開 CSV 畫折線圖：日常噪音的分數 vs 真哭時的分數
-4. 把 `CRY_SCORE_THRESHOLD` 設在兩者中間，改回 `LOG_ONLY = False`
+2. 正常生活幾天，所有分數會存在 `cry_scores.csv`（活動量存在 `motion_scores.csv`）
+3. 跑 `python backend/analyze_calibration.py`，自動統計背景噪音／疑似哭聲的分數分布，
+   並印出建議的 `CRY_SCORE_THRESHOLD`（同時存成 `backend/calibration_report.txt`）
+4. 把門檻值填回 `config.py`，改回 `LOG_ONLY = False`
 
 ## 五之二、定時拍照 / 手動拍照指令
 
 - 程式會每 15 分鐘自動傳一張現場畫面到 Telegram（`config.py` 的 `PERIODIC_SNAPSHOT_SEC` 可調）。
 - 想臨時看一眼寶寶現在的樣子：直接在 Telegram 傳 `/photo` 給你的 Bot，幾秒內會回傳一張現場截圖。
 - 想知道現在是安靜還是可能醒了：傳 `/status` 給 Bot，會回傳文字判斷（🌟可能醒了／😴看起來在睡覺）＋現場截圖。
+- 想聽聽現場最近的聲音（測試麥克風/校準用）：傳 `/sound` 給 Bot，會回傳最近一段現場錄音（WAV）＋目前哭聲分數狀態。
 - 忘記有哪些指令：傳 `/help` 給 Bot（或在 Bot 對話框按 Telegram 內建的「Start」）即可再看一次說明。程式開機時也會自動發一次同樣的說明訊息。
 
 ## 五之三、活動量預警（可能醒了）的暖機時間
@@ -77,8 +79,8 @@ python audio_monitor.py
 - **聲音分數怪怪的** → 調整韌體裡的 `GAIN_SHIFT`（太小聲改 9，爆音改 13）
 - **警報沒截圖只有文字** → `config.py` 的 `STREAM_URL` 檢查一下，ESP32-CAM 是否在線
 
-## 下一階段（程式架構已預留）
+## 下一階段
 
-- 階段 3：影像幀差活動量 → 「可能醒了」預警
-- 階段 4：校準週定案門檻
+- 階段 3：影像幀差活動量 → 「可能醒了」預警（程式已完成，待接上 ESP32-CAM 實測）
+- 階段 4：校準週定案門檻（`backend/analyze_calibration.py` 已可分析 `cry_scores.csv`／`motion_scores.csv`，統計背景噪音與疑似哭聲分數分布，給門檻建議值）
 - 階段 5：夜視鏡頭＋850nm 補光燈到貨 → 24 小時版
