@@ -3,7 +3,8 @@
 > 用 ESP32 感測節點 + 後端 AI 推論,即時偵測嬰兒哭聲與活動狀態,透過 Telegram 主動通知家長,並附上現場照片與錄音。
 
 <!-- 【補圖 1】這裡放 demo:手機收到 Telegram 哭聲警報的截圖,或 10 秒實測 GIF。這是訪客看到的第一個畫面,務必要放 -->
-![demo](docs/images/demo.png)
+![demo](<img width="573" height="684" alt="image" src="https://github.com/user-attachments/assets/4a0a3797-c4cd-4f66-a875-7eaf0915c09a" />
+)
 
 ---
 
