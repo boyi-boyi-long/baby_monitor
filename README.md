@@ -1,25 +1,22 @@
-
-#  Baby Monitor — 嬰兒智能監測系統(聲音 + 影像雙模態)
+# Baby Monitor — 嬰兒智能監測系統(聲音 + 影像雙模態)
 
 > 用 ESP32 感測節點 + 後端 AI 推論,即時偵測嬰兒哭聲與活動狀態,透過 Telegram 主動通知家長,並附上現場照片與錄音。
 
-<!-- 【補圖 1】這裡放 demo:手機收到 Telegram 哭聲警報的截圖,或 10 秒實測 GIF。這是訪客看到的第一個畫面,務必要放 -->
-<img width="573" height="661" alt="Snipaste_2026-07-11_18-07-40" src="https://github.com/user-attachments/assets/43ea7c69-e6e4-4d87-9c2b-35a426b2bdb4" />
+<img width="573" height="661" alt="Telegram 哭聲警報實測畫面" src="https://github.com/user-attachments/assets/43ea7c69-e6e4-4d87-9c2b-35a426b2bdb4" />
 
 ---
 
-##  系統能力
+## 系統能力
 
--  **哭聲警報**:YAMNet 即時辨識哭聲,通知附上現場照片 + 最近 10 秒錄音
--  **活動預警**:影像幀差偵測「持續活動」,在寶寶哭出來**之前**提前通知「可能醒了」
--  **遠端查看**:Telegram 指令 `/photo` `/status` `/sound` 隨時查看現場
--  **定時報平安**:每 15 分鐘回報系統與寶寶狀態
--  **節點離線自動通知**:感測節點斷線即刻告警,不會默默失效
--  **分級出聲**:預警 → 警報兩級通知,把最終判斷權留給家長的眼睛和耳朵
+- **哭聲警報**:YAMNet 即時辨識哭聲,通知附上現場照片 + 最近 10 秒錄音
+- **活動預警**:影像幀差偵測「持續活動」,在寶寶哭出來**之前**提前通知「可能醒了」
+- **遠端查看**:Telegram 指令 `/photo` `/status` `/sound` 隨時查看現場
+- **定時報平安**:每 15 分鐘回報系統與寶寶狀態
+- **節點離線自動通知**:感測節點斷線即刻告警,不會默默失效
+- **分級出聲**:預警 → 警報兩級通知,把最終判斷權留給家長的眼睛和耳朵
 
-##  系統架構
+## 系統架構
 
-<!-- 【補圖 2】架構圖:兩個 ESP32 節點(INMP441 音訊 / ESP32-CAM 影像)→ WiFi → 筆電後端(YAMNet + 幀差演算法)→ Telegram。用 draw.io 畫,或先手繪拍照 -->
 ```mermaid
 flowchart LR
     subgraph 嬰兒房
@@ -93,27 +90,29 @@ flowchart LR
 
 哭聲判定的「分數門檻」不是拍腦袋定的:
 
-1. 系統先以 `LOG_ONLY` 模式運行,只記錄不通知
-2. 收集真實環境數據(含哭聲、笑聲、環境音)
-3. 繪製分數分佈圖,找出哭聲與非哭聲的分離點
-4. 據此設定門檻 + 持續秒數,再切換為通知模式
-
-<!-- 【補圖 3】如果你有當時畫的分數分佈圖,放這裡,非常加分 -->
+1. 系統先以 `LOG_ONLY = True` 模式運行 3~5 天,只記錄不通知
+2. 所有分數寫入 `cry_scores.csv`,收集真實環境數據(日常噪音、講話、真哭)
+3. 繪製分數分佈,找出哭聲與非哭聲的分離點
+4. 把 `CRY_SCORE_THRESHOLD` 設在兩者之間,搭配持續秒數,再切回通知模式
 
 ## 🛠️ 技術棧
 
-`Python` `TensorFlow / YAMNet` `ESP32 (Arduino)` `I2S / INMP441` `ESP32-CAM / OV3660` `OpenCV(幀差)` `Telegram Bot API`
+`Python` `TensorFlow / YAMNet` `ESP32 (Arduino / C++)` `I2S / INMP441` `ESP32-CAM / OV3660` `幀差演算法` `Telegram Bot API` `UDP 音訊串流`
 
 ## 🚀 快速開始
 
-完整的硬體接線、韌體燒錄與後端安裝步驟,請見 **[安裝指南](docs/INSTALL.md)**。
+完整的硬體接線、韌體燒錄、Telegram Bot 申請與校準流程,請見 **[安裝指南](doc/INSTALL.md)**。
 
 ```bash
-# 後端快速啟動
+# 1. 燒錄韌體:Arduino IDE 開啟 esp32_mic_firmware/,填入 WiFi 與筆電 IP
+# 2. 設定後端:在 backend/config.py 填入 Telegram Bot Token 與 Chat ID
+# 3. 啟動後端
+cd backend
 pip install -r requirements.txt
-cp .env.example .env   # 填入 Telegram Bot Token
-python main.py
+python audio_monitor.py
 ```
+
+第一次執行會自動下載 YAMNet 模型(約 4MB),終端機開始滾動「哭聲 0.xx |####...|」即代表整條管線已通。
 
 ## 🗺️ Roadmap
 
@@ -122,10 +121,6 @@ python main.py
 - [x] Telegram 通知與遠端指令
 - [ ] 事件歷史儀表板(睡眠/哭鬧統計)
 - [ ] 多房間多節點支援
-
-## 📄 延伸閱讀
-
-- [技術歷程完整版](docs/tech-journey.pdf) — 三個世代的完整診斷過程與架構取捨思考
 
 ---
 
