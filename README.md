@@ -1,10 +1,10 @@
+
 #  Baby Monitor — 嬰兒智能監測系統(聲音 + 影像雙模態)
 
 > 用 ESP32 感測節點 + 後端 AI 推論,即時偵測嬰兒哭聲與活動狀態,透過 Telegram 主動通知家長,並附上現場照片與錄音。
 
 <!-- 【補圖 1】這裡放 demo:手機收到 Telegram 哭聲警報的截圖,或 10 秒實測 GIF。這是訪客看到的第一個畫面,務必要放 -->
-![demo](<img width="573" height="684" alt="image" src="https://github.com/user-attachments/assets/4a0a3797-c4cd-4f66-a875-7eaf0915c09a" />
-)
+<img width="573" height="661" alt="Snipaste_2026-07-11_18-07-40" src="https://github.com/user-attachments/assets/43ea7c69-e6e4-4d87-9c2b-35a426b2bdb4" />
 
 ---
 
