@@ -20,7 +20,28 @@
 ##  系統架構
 
 <!-- 【補圖 2】架構圖:兩個 ESP32 節點(INMP441 音訊 / ESP32-CAM 影像)→ WiFi → 筆電後端(YAMNet + 幀差演算法)→ Telegram。用 draw.io 畫,或先手繪拍照 -->
-![architecture](docs/images/architecture.png)
+```mermaid
+flowchart LR
+    subgraph 嬰兒房
+        A[🎤 ESP32 + INMP441<br/>聲音節點] 
+        B[📷 ESP32-CAM OV3660<br/>影像節點]
+    end
+
+    subgraph 後端筆電
+        C[YAMNet<br/>哭聲推論]
+        D[幀差演算法<br/>活動偵測]
+        E[事件分級引擎<br/>預警 / 警報]
+    end
+
+    F[📱 Telegram<br/>家長手機]
+
+    A -- 16kHz 音訊串流 --> C
+    B -- MJPEG 影像串流 --> D
+    C --> E
+    D --> E
+    E -- 警報+照片+錄音 --> F
+    F -- /photo /status /sound --> E
+```
 
 **設計原則:感測節點「零智慧」,運算集中在後端。**
 
